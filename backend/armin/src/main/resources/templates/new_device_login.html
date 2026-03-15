@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Nouvelle connexion</title></head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
+<h2>⚠️ Nouvelle connexion détectée</h2>
+<p>Bonjour <span th:text="${username}"></span>,</p>
+<p>Une connexion à votre compte a été détectée depuis un nouvel appareil :</p>
+<table style="width:100%; border-collapse: collapse;">
+    <tr style="background:#f4f4f4;">
+        <td style="padding:8px;"><strong>Adresse IP</strong></td>
+        <td style="padding:8px;" th:text="${ip}"></td>
+    </tr>
+    <tr>
+        <td style="padding:8px;"><strong>Appareil</strong></td>
+        <td style="padding:8px;" th:text="${device}"></td>
+    </tr>
+    <tr style="background:#f4f4f4;">
+        <td style="padding:8px;"><strong>Date/Heure</strong></td>
+        <td style="padding:8px;" th:text="${time}"></td>
+    </tr>
+</table>
+<p style="color: red;">
+    Si ce n'était pas vous, changez votre mot de passe immédiatement.
+</p>
+</body>
+</html>
