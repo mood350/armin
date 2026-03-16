@@ -33,7 +33,7 @@ public class DashboardService {
 
     public DashboardResponse getDashboard() {
         User user = getCurrentUser();
-        Subscription sub = subscriptionRepository.findByUser(user).orElseThrow();
+        Subscription sub = subscriptionRepository.findByUser(user).orElse(null);
 
         // Projets accessibles
         List<Project> projects = projectRepository.findAllAccessibleByUser(user);
@@ -51,24 +51,40 @@ public class DashboardService {
                 .mapToLong(p -> titleRepository.findByProjectOrderByEngagementScoreDesc(p).size())
                 .sum();
 
-        // Quotas
-        DashboardResponse.QuotaInfo ideaQuota = buildQuota(
-                sub.getIdeasUsedToday(),
-                sub.getPlan().getDailyIdeaQuota(),
-                sub.getPlan().isUnlimited()
-        );
+        // Quotas — valeurs par défaut si pas de subscription (ex: admin)
+        DashboardResponse.QuotaInfo ideaQuota;
+        DashboardResponse.QuotaInfo scriptQuota;
+        DashboardResponse.QuotaInfo titleQuota;
+        String currentPlan;
+        String planExpiresAt;
 
-        DashboardResponse.QuotaInfo scriptQuota = buildQuota(
-                sub.getScriptsUsedToday(),
-                sub.getPlan().getDailyScriptQuota(),
-                sub.getPlan().isUnlimited()
-        );
-
-        DashboardResponse.QuotaInfo titleQuota = buildQuota(
-                sub.getTitlesUsedToday(),
-                sub.getPlan().getDailyTitleQuota(),
-                sub.getPlan().isUnlimited()
-        );
+        if (sub == null) {
+            ideaQuota = unlimitedQuota();
+            scriptQuota = unlimitedQuota();
+            titleQuota = unlimitedQuota();
+            currentPlan = "ADMIN";
+            planExpiresAt = "N/A";
+        } else {
+            ideaQuota = buildQuota(
+                    sub.getIdeasUsedToday(),
+                    sub.getPlan().getDailyIdeaQuota(),
+                    sub.getPlan().isUnlimited()
+            );
+            scriptQuota = buildQuota(
+                    sub.getScriptsUsedToday(),
+                    sub.getPlan().getDailyScriptQuota(),
+                    sub.getPlan().isUnlimited()
+            );
+            titleQuota = buildQuota(
+                    sub.getTitlesUsedToday(),
+                    sub.getPlan().getDailyTitleQuota(),
+                    sub.getPlan().isUnlimited()
+            );
+            currentPlan = sub.getPlan().name();
+            planExpiresAt = sub.getEndDate() != null
+                    ? sub.getEndDate().format(FORMATTER)
+                    : "Pas d'expiration (FREE)";
+        }
 
         // 3 derniers projets avec stats
         List<DashboardResponse.RecentProject> recentProjects = projects.stream()
@@ -99,11 +115,6 @@ public class DashboardService {
                 .limit(5)
                 .toList();
 
-        // Plan + expiration
-        String planExpiresAt = sub.getEndDate() != null
-                ? sub.getEndDate().format(FORMATTER)
-                : "Pas d'expiration (FREE)";
-
         return DashboardResponse.builder()
                 .totalProjects(projects.size())
                 .totalIdeas(totalIdeas)
@@ -112,10 +123,20 @@ public class DashboardService {
                 .ideaQuota(ideaQuota)
                 .scriptQuota(scriptQuota)
                 .titleQuota(titleQuota)
-                .currentPlan(sub.getPlan().name())
+                .currentPlan(currentPlan)
                 .planExpiresAt(planExpiresAt)
                 .recentActivities(activities)
                 .recentProjects(recentProjects)
+                .build();
+    }
+
+    private DashboardResponse.QuotaInfo unlimitedQuota() {
+        return DashboardResponse.QuotaInfo.builder()
+                .used(0)
+                .limit(-1)
+                .remaining(-1)
+                .unlimited(true)
+                .percentage(0)
                 .build();
     }
 
