@@ -157,7 +157,11 @@ public class AuthenticationService {
         user.setLastKnownUserAgent(userAgent);
         userRepository.save(user);
 
-        var accessToken = jwtService.generateToken(user);
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("authorities", user.getRoles().stream()
+                .map(Role::getRoleName)
+                .toList());
+        var accessToken = jwtService.generateToken(claims, user);
         var refreshToken = jwtService.generateRefreshToken(user);
 
         return AuthenticationResponse.builder()
@@ -267,7 +271,11 @@ public class AuthenticationService {
         }
 
         // Génère un nouvel access token uniquement
-        var newAccessToken = jwtService.generateToken(user);
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("authorities", user.getRoles().stream()
+                .map(Role::getRoleName)
+                .toList());
+        var newAccessToken = jwtService.generateToken(claims, user);
 
         return AuthenticationResponse.builder()
                 .accessToken(newAccessToken)
