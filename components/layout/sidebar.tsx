@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     LayoutDashboard, FolderOpen, Lightbulb,
     FileText, Type, CreditCard, Settings,
-    ChevronLeft, ChevronRight, Sparkles, LogOut,
+    ChevronLeft, ChevronRight, Sparkles, LogOut, ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -15,20 +15,28 @@ import { Badge } from "@/components/ui/badge";
 import { useAuthStore } from "@/store/auth-store";
 
 const navItems = [
-    { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { label: "Projets", href: "/projects", icon: FolderOpen },
-    { label: "Idées", href: "/ideas", icon: Lightbulb },
-    { label: "Scripts", href: "/scripts", icon: FileText },
-    { label: "Titres", href: "/titles", icon: Type },
-    { label: "Abonnement", href: "/subscription", icon: CreditCard, badge: "PRO" },
-    { label: "Paramètres", href: "/settings", icon: Settings },
+    { label: "Dashboard",   href: "/dashboard",    icon: LayoutDashboard },
+    { label: "Projets",     href: "/projects",     icon: FolderOpen },
+    { label: "Idees",       href: "/ideas",        icon: Lightbulb },
+    { label: "Scripts",     href: "/scripts",      icon: FileText },
+    { label: "Titres",      href: "/titles",       icon: Type },
+    { label: "Abonnement",  href: "/subscription", icon: CreditCard, badge: "PRO" },
+    { label: "Parametres",  href: "/settings",     icon: Settings },
 ];
 
 export function Sidebar() {
     const [collapsed, setCollapsed] = useState(false);
     const pathname = usePathname();
-    const { logout } = useAuthStore();
+    const { logout, role } = useAuthStore();
     const router = useRouter();
+    const isAdmin = role === "ADMIN";
+
+    // Rediriger les non-admins qui essaient d'accéder à /admin
+    useEffect(() => {
+        if (pathname.startsWith("/admin") && !isAdmin) {
+            router.replace("/dashboard");
+        }
+    }, [pathname, isAdmin, router]);
 
     const handleLogout = () => {
         logout();
@@ -83,9 +91,9 @@ export function Sidebar() {
                                             exit={{ opacity: 0 }}
                                             className="flex items-center gap-2 flex-1 min-w-0"
                                         >
-                      <span className="text-sm font-medium truncate">
-                        {item.label}
-                      </span>
+                                            <span className="text-sm font-medium truncate">
+                                                {item.label}
+                                            </span>
                                             {item.badge && (
                                                 <Badge variant="secondary" className="text-xs ml-auto">
                                                     {item.badge}
@@ -98,6 +106,35 @@ export function Sidebar() {
                         </Link>
                     );
                 })}
+
+                {/* Lien Admin — visible uniquement pour les ADMIN */}
+                {isAdmin && (
+                    <Link href="/admin">
+                        <div className={cn(
+                            "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 mt-2",
+                            pathname.startsWith("/admin")
+                                ? "bg-primary text-primary-foreground"
+                                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                        )}>
+                            <ShieldCheck className="w-5 h-5 flex-shrink-0" />
+                            <AnimatePresence>
+                                {!collapsed && (
+                                    <motion.div
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
+                                        className="flex items-center gap-2 flex-1 min-w-0"
+                                    >
+                                        <span className="text-sm font-medium truncate">Admin</span>
+                                        <Badge className="text-xs ml-auto bg-red-500/10 text-red-400 border-red-500/20">
+                                            Admin
+                                        </Badge>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    </Link>
+                )}
             </nav>
 
             {/* Logout */}
@@ -117,7 +154,7 @@ export function Sidebar() {
                                 exit={{ opacity: 0 }}
                                 className="text-sm font-medium"
                             >
-                                Déconnexion
+                                Deconnexion
                             </motion.span>
                         )}
                     </AnimatePresence>
