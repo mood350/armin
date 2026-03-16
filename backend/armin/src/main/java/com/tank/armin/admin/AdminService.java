@@ -15,6 +15,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -28,9 +29,6 @@ public class AdminService {
     private final ScriptRepository scriptRepository;
     private final TitleRepository titleRepository;
 
-    /**
-     * Liste tous les utilisateurs avec pagination.
-     */
     public Page<AdminUserResponse> getAllUsers(Pageable pageable) {
         return userRepository.findAll(pageable).map(user -> {
             Subscription sub = subscriptionRepository
@@ -41,9 +39,6 @@ public class AdminService {
         });
     }
 
-    /**
-     * Suspend ou réactive un compte utilisateur.
-     */
     public void toggleUserAccount(Long userId, boolean locked) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException(
@@ -52,9 +47,6 @@ public class AdminService {
         userRepository.save(user);
     }
 
-    /**
-     * Statistiques globales de la plateforme.
-     */
     public AdminStatsResponse getStats() {
         List<User> allUsers = userRepository.findAll();
         long totalUsers = allUsers.size();
@@ -91,14 +83,30 @@ public class AdminService {
     }
 
     /**
-     * Change le plan d'un utilisateur manuellement.
+     * Change le plan d'un utilisateur.
+     * Si l'utilisateur n'a pas encore de subscription (ex: admin),
+     * on en crée une automatiquement.
      */
     public void changePlan(Long userId, SubscriptionPlan plan) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException(
                         "Utilisateur introuvable"));
+
         Subscription sub = subscriptionRepository.findByUser(user)
-                .orElseThrow();
+                .orElseGet(() -> {
+                    // Crée une subscription FREE par défaut puis change le plan
+                    Subscription newSub = Subscription.builder()
+                            .user(user)
+                            .plan(SubscriptionPlan.FREE)
+                            .status(com.tank.armin.subscription.SubscriptionStatus.ACTIVE)
+                            .startDate(LocalDateTime.now())
+                            .ideasUsedToday(0)
+                            .scriptsUsedToday(0)
+                            .titlesUsedToday(0)
+                            .build();
+                    return subscriptionRepository.save(newSub);
+                });
+
         sub.setPlan(plan);
         subscriptionRepository.save(sub);
     }
