@@ -16,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,57 +34,32 @@ public class IdeaService {
     private final IdeaPromptBuilder promptBuilder;
     private final ObjectMapper objectMapper;
 
-    // ═══════════════════════════════════════════════════════════════
-    //  GÉNÉRATION IA
-    // ═══════════════════════════════════════════════════════════════
-
-    /**
-     * Génère des idées via l'IA et les sauvegarde en BDD.
-     *
-     * FLUX :
-     *  1. Vérifie le quota journalier
-     *  2. Construit le prompt
-     *  3. Appelle l'IA
-     *  4. Parse le JSON retourné
-     *  5. Sauvegarde les idées en BDD
-     *  6. Incrémente le quota
-     */
+    @Transactional
     public List<IdeaResponse> generate(IdeaGenerationRequest request) {
         User user = getCurrentUser();
         Subscription sub = getSubscription(user);
 
-        // Vérifie le quota journalier
         checkQuota(sub);
 
-        // Récupère le projet
         Project project = projectRepository.findById(request.getProjectId())
                 .orElseThrow(() -> new EntityNotFoundException("Projet introuvable"));
 
-        // Détermine le provider IA selon le plan
         AiProvider provider = getProvider(sub);
 
-        // Construit le prompt
         String prompt = promptBuilder.build(request);
 
-        // Appelle l'IA
-        log.info("Génération d'idées via {} pour user {}",
-                provider, user.getEmail());
+        log.info("Génération d'idées via {} pour user {}", provider, user.getEmail());
         String aiResponse = aiService.generate(prompt, provider);
 
-        // Parse le JSON retourné par l'IA
         List<Idea> ideas = parseAndSaveIdeas(aiResponse, request, project);
 
-        // Incrémente le quota
         sub.setIdeasUsedToday(sub.getIdeasUsedToday() + request.getCount());
         subscriptionRepository.save(sub);
 
         return ideas.stream().map(IdeaResponse::from).toList();
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    //  CRUD
-    // ═══════════════════════════════════════════════════════════════
-
+    @Transactional(readOnly = true)
     public List<IdeaResponse> getByProject(Long projectId) {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new EntityNotFoundException("Projet introuvable"));
@@ -91,10 +67,7 @@ public class IdeaService {
                 .stream().map(IdeaResponse::from).toList();
     }
 
-    /**
-     * Met à jour le statut d'une idée.
-     * Ex: SAVED → REJECTED ou SAVED → CONVERTED
-     */
+    @Transactional
     public IdeaResponse updateStatus(Long id, IdeaStatus status) {
         Idea idea = ideaRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Idée introuvable"));
@@ -102,9 +75,7 @@ public class IdeaService {
         return IdeaResponse.from(ideaRepository.save(idea));
     }
 
-    /**
-     * Ajoute des notes personnelles à une idée.
-     */
+    @Transactional
     public IdeaResponse addNotes(Long id, String notes) {
         Idea idea = ideaRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Idée introuvable"));
@@ -112,13 +83,10 @@ public class IdeaService {
         return IdeaResponse.from(ideaRepository.save(idea));
     }
 
+    @Transactional
     public void delete(Long id) {
         ideaRepository.deleteById(id);
     }
-
-    // ═══════════════════════════════════════════════════════════════
-    //  UTILITAIRES PRIVÉS
-    // ═══════════════════════════════════════════════════════════════
 
     private User getCurrentUser() {
         String email = SecurityContextHolder.getContext()
@@ -130,9 +98,6 @@ public class IdeaService {
         return subscriptionRepository.findByUser(user).orElseThrow();
     }
 
-    /**
-     * Vérifie le quota journalier selon le plan.
-     */
     private void checkQuota(Subscription sub) {
         if (sub.getPlan().isUnlimited()) return;
 
@@ -160,20 +125,13 @@ public class IdeaService {
         }
     }
 
-    /**
-     * Pro/Business peut choisir Claude.
-     * FREE et par défaut → OpenAI.
-     */
     private AiProvider getProvider(Subscription sub) {
         return switch (sub.getPlan()) {
-            case PRO, BUSINESS -> AiProvider.GROQ;   // Plus rapide pour les payants
-            default            -> AiProvider.GEMINI;  // Gemini pour FREE
+            case PRO, BUSINESS -> AiProvider.GROQ;
+            default            -> AiProvider.GEMINI;
         };
     }
 
-    /**
-     * Parse le JSON retourné par l'IA et sauvegarde les idées.
-     */
     private List<Idea> parseAndSaveIdeas(
             String aiResponse,
             IdeaGenerationRequest request,
@@ -182,7 +140,6 @@ public class IdeaService {
         List<Idea> ideas = new ArrayList<>();
 
         try {
-            // Nettoie le JSON (l'IA peut ajouter des ```json ```)
             String cleanJson = aiResponse
                     .replaceAll("```json", "")
                     .replaceAll("```", "")

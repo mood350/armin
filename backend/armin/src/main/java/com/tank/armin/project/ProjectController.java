@@ -15,6 +15,8 @@ public class ProjectController {
 
     private final ProjectService projectService;
 
+    record CollaboratorRequest(String email) {}
+
     // POST /api/projects
     @PostMapping
     public ResponseEntity<ProjectResponse> create(
@@ -63,8 +65,8 @@ public class ProjectController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void addCollaborator(
             @PathVariable Long id,
-            @RequestParam String email) {
-        projectService.addCollaborator(id, email);
+            @RequestBody CollaboratorRequest request) {
+        projectService.addCollaborator(id, request.email());
     }
 
     // DELETE /api/projects/{id}/collaborators
@@ -72,7 +74,14 @@ public class ProjectController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void removeCollaborator(
             @PathVariable Long id,
-            @RequestParam String email) {
-        projectService.removeCollaborator(id, email);
+            @RequestBody CollaboratorRequest request) {
+        projectService.removeCollaborator(id, request.email());
+    }
+
+    // GET /api/projects/{id}/collaborators
+    @GetMapping("/{id}/collaborators")
+    public ResponseEntity<List<CollaboratorResponse>> getCollaborators(
+            @PathVariable Long id) {
+        return ResponseEntity.ok(projectService.getCollaborators(id));
     }
 }

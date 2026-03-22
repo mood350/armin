@@ -170,6 +170,7 @@ public class ScriptService {
                 .stream().map(ScriptResponse::from).toList();
     }
 
+    @Transactional(readOnly = true)
     public ScriptResponse getById(Long id) {
         return ScriptResponse.from(scriptRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Script introuvable")));

@@ -17,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,15 +36,11 @@ public class TitleService {
     private final TitlePromptBuilder promptBuilder;
     private final ObjectMapper objectMapper;
 
-    // ═══════════════════════════════════════════════════════════════
-    //  GÉNÉRATION IA
-    // ═══════════════════════════════════════════════════════════════
-
+    @Transactional
     public List<TitleResponse> generate(TitleGenerationRequest request) {
         User user = getCurrentUser();
         Subscription sub = getSubscription(user);
 
-        // Vérifie le quota
         checkQuota(sub);
 
         Project project = projectRepository.findById(request.getProjectId())
@@ -54,15 +51,11 @@ public class TitleService {
             script = scriptRepository.findById(request.getScriptId()).orElse(null);
         }
 
-        // Appelle l'IA
         String prompt = promptBuilder.build(request);
         String aiResponse = aiService.generate(prompt, getProvider(sub));
 
-        // Parse et sauvegarde
-        List<Title> titles = parseAndSaveTitles(
-                aiResponse, request, project, script);
+        List<Title> titles = parseAndSaveTitles(aiResponse, request, project, script);
 
-        // Incrémente le quota
         sub.setTitlesUsedToday(sub.getTitlesUsedToday() + 1);
         subscriptionRepository.save(sub);
 
@@ -71,10 +64,7 @@ public class TitleService {
                 .toList();
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    //  CRUD
-    // ═══════════════════════════════════════════════════════════════
-
+    @Transactional(readOnly = true)
     public List<TitleResponse> getByProject(Long projectId) {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new EntityNotFoundException("Projet introuvable"));
@@ -85,14 +75,11 @@ public class TitleService {
                 .toList();
     }
 
-    /**
-     * Sélectionne un titre comme titre final du projet.
-     */
+    @Transactional
     public TitleResponse select(Long id) {
         Title title = titleRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Titre introuvable"));
 
-        // Désélectionne tous les autres titres du projet
         titleRepository.findByProjectAndSelectedTrue(title.getProject())
                 .forEach(t -> {
                     t.setSelected(false);
@@ -104,13 +91,10 @@ public class TitleService {
                 title.getProject().getPlatform());
     }
 
+    @Transactional
     public void delete(Long id) {
         titleRepository.deleteById(id);
     }
-
-    // ═══════════════════════════════════════════════════════════════
-    //  UTILITAIRES PRIVÉS
-    // ═══════════════════════════════════════════════════════════════
 
     private List<Title> parseAndSaveTitles(
             String aiResponse,
