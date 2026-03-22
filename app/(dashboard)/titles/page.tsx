@@ -61,7 +61,6 @@ export default function TitlesPage() {
         queryFn: async () => (await api.get("/api/projects")).data,
     });
 
-    // Charger les titres de TOUS les projets en parallèle
     const titlesQuery = useQuery<Title[]>({
         queryKey: ["titles-all", projects.map(p => p.id)],
         queryFn: async () => {
@@ -100,13 +99,18 @@ export default function TitlesPage() {
         }
         setIsGenerating(true);
         try {
+            // FIX: payload correct pour le backend
             await api.post("/api/titles/generate", {
                 projectId: Number(projectId),
-                subject, keywords, platform,
+                subject,
+                keywords: keywords || null,
+                platform,
                 count: Number(count),
             });
             toast.success(`${count} titres générés !`);
             setOpen(false);
+            setSubject("");
+            setKeywords("");
             void queryClient.invalidateQueries({ queryKey: ["titles-all"] });
         } catch (error) {
             const err = error as { response?: { data?: { message?: string } } };
@@ -116,9 +120,10 @@ export default function TitlesPage() {
         }
     };
 
+    // FIX: filtre par projectId (pas t.id)
     const filtered = allTitles.filter((t) => {
         const matchSearch = t.content.toLowerCase().includes(search.toLowerCase());
-        const matchProject = filterProject === "ALL" || String(t.id) === filterProject;
+        const matchProject = filterProject === "ALL" || String(t.projectId) === filterProject;
         return matchSearch && matchProject;
     });
 
@@ -199,7 +204,6 @@ export default function TitlesPage() {
                         <span className="text-xs font-medium text-primary">Titre sélectionné</span>
                     </div>
                     <p className="font-semibold">{selectedTitle.content}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{selectedTitle.platformLimit}</p>
                 </motion.div>
             )}
 
@@ -210,9 +214,7 @@ export default function TitlesPage() {
                     <Input placeholder="Rechercher..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
                 </div>
                 <Select value={filterProject} onValueChange={setFilterProject}>
-                    <SelectTrigger className="w-48">
-                        <SelectValue placeholder="Tous les projets" />
-                    </SelectTrigger>
+                    <SelectTrigger className="w-48"><SelectValue placeholder="Tous les projets" /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="ALL">Tous les projets</SelectItem>
                         {projects.map((p) => (<SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>))}
@@ -238,13 +240,12 @@ export default function TitlesPage() {
             ) : (
                 <motion.div variants={container} className="space-y-2">
                     {filtered.map((title) => {
-                        const project = projects.find(p => p.id === title.id);
+                        const project = projects.find(p => p.id === title.projectId); // FIX
                         return (
                             <motion.div key={title.id} variants={item}
                                         className={`group bg-card border rounded-xl p-4 transition-all duration-150
                                     ${title.selected ? "border-primary/50 bg-primary/5" : "border-border hover:border-primary/40"}`}>
                                 <div className="flex items-start gap-4">
-                                    {/* Score */}
                                     <div className="flex-shrink-0 text-center w-12">
                                         <div className={`text-lg font-bold ${scoreColor(title.engagementScore)}`}>
                                             {title.engagementScore}
@@ -253,15 +254,11 @@ export default function TitlesPage() {
                                         <div className={`h-1 rounded-full mt-1 ${scoreBarColor(title.engagementScore)}`}
                                              style={{ width: `${title.engagementScore}%`, maxWidth: "100%" }} />
                                     </div>
-                                    {/* Content */}
                                     <div className="flex-1 min-w-0">
                                         <p className="font-medium text-sm mb-1">{title.content}</p>
                                         <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                                             <span className="flex items-center gap-1">
                                                 <TrendingUp className="w-3 h-3" /> {title.characterCount} car.
-                                            </span>
-                                            <span className={title.platformLimit?.startsWith("✅") ? "text-green-500" : "text-amber-500"}>
-                                                {title.platformLimit}
                                             </span>
                                             {project && <Badge variant="secondary" className="text-xs">{project.name}</Badge>}
                                         </div>
@@ -273,7 +270,6 @@ export default function TitlesPage() {
                                             </div>
                                         )}
                                     </div>
-                                    {/* Actions */}
                                     <div className="flex items-center gap-1 flex-shrink-0">
                                         <Button variant="ghost" size="icon"
                                                 className={`w-8 h-8 ${title.selected ? "text-primary" : "opacity-0 group-hover:opacity-100"}`}

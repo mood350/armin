@@ -56,7 +56,6 @@ export default function ScriptsPage() {
         queryFn: async () => (await api.get("/api/projects")).data,
     });
 
-    // Charger les scripts de TOUS les projets en parallèle
     const scriptsQuery = useQuery<Script[]>({
         queryKey: ["scripts-all", projects.map(p => p.id)],
         queryFn: async () => {
@@ -87,7 +86,7 @@ export default function ScriptsPage() {
         }
         setIsGenerating(true);
         try {
-            await api.post("/api/scripts/generate", {
+            const res = await api.post("/api/scripts/generate", {
                 projectId: Number(projectId),
                 title,
                 tone: selectedTone,
@@ -96,6 +95,8 @@ export default function ScriptsPage() {
             setOpen(false);
             setTitle("");
             void queryClient.invalidateQueries({ queryKey: ["scripts-all"] });
+            // Naviguer directement vers l'éditeur
+            router.push(`/scripts/${res.data.id}`);
         } catch (error) {
             const err = error as { response?: { data?: { message?: string } } };
             toast.error(err.response?.data?.message || "Erreur lors de la génération");
@@ -104,9 +105,10 @@ export default function ScriptsPage() {
         }
     };
 
+    // FIX: filtre par projectId (pas s.id)
     const filtered = allScripts.filter((s) => {
         const matchSearch = s.title.toLowerCase().includes(search.toLowerCase());
-        const matchProject = filterProject === "ALL" || String(s.id) === filterProject;
+        const matchProject = filterProject === "ALL" || String(s.projectId) === filterProject;
         return matchSearch && matchProject;
     });
 
@@ -173,9 +175,7 @@ export default function ScriptsPage() {
                     <Input placeholder="Rechercher..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
                 </div>
                 <Select value={filterProject} onValueChange={setFilterProject}>
-                    <SelectTrigger className="w-48">
-                        <SelectValue placeholder="Tous les projets" />
-                    </SelectTrigger>
+                    <SelectTrigger className="w-48"><SelectValue placeholder="Tous les projets" /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="ALL">Tous les projets</SelectItem>
                         {projects.map((p) => (<SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>))}
@@ -201,10 +201,11 @@ export default function ScriptsPage() {
             ) : (
                 <motion.div variants={container} className="space-y-3">
                     {filtered.map((script) => {
-                        const project = projects.find(p => p.id === script.id);
+                        const project = projects.find(p => p.id === script.projectId); // FIX
                         return (
                             <motion.div key={script.id} variants={item}
-                                        className="group bg-card border border-border rounded-xl p-4 hover:border-primary/40 transition-all duration-150">
+                                        className="group bg-card border border-border rounded-xl p-4 hover:border-primary/40 transition-all duration-150 cursor-pointer"
+                                        onClick={() => router.push(`/scripts/${script.id}`)}>
                                 <div className="flex items-start justify-between gap-4">
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2 mb-2 flex-wrap">
@@ -225,11 +226,14 @@ export default function ScriptsPage() {
                                             {script.content?.slice(0, 120)}...
                                         </p>
                                     </div>
-                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                                        <Button variant="ghost" size="icon" className="w-8 h-8" onClick={() => router.push(`/scripts/${script.id}`)}>
+                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                                         onClick={(e) => e.stopPropagation()}>
+                                        <Button variant="ghost" size="icon" className="w-8 h-8"
+                                                onClick={() => router.push(`/scripts/${script.id}`)}>
                                             <Eye className="w-4 h-4" />
                                         </Button>
-                                        <Button variant="ghost" size="icon" className="w-8 h-8" onClick={() => router.push(`/scripts/${script.id}?improve=true`)}>
+                                        <Button variant="ghost" size="icon" className="w-8 h-8"
+                                                onClick={() => router.push(`/scripts/${script.id}?improve=true`)}>
                                             <Wand2 className="w-4 h-4" />
                                         </Button>
                                         <Button variant="ghost" size="icon" className="w-8 h-8 text-destructive hover:bg-destructive/10"

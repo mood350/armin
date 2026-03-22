@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
     Lightbulb, Sparkles, Loader2, CheckCircle2,
-    XCircle, ArrowRight, Search, Filter
+    XCircle, ArrowRight, Search, Filter, FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,8 +22,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import api from "@/lib/api";
-import { Idea, IdeaStatus, Project, Platform } from "@/types";
-import { useRouter } from "next/navigation";
+import { Idea, IdeaStatus, Project, Platform, ScriptTone } from "@/types";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const statusConfig: Record<IdeaStatus, { label: string; color: string }> = {
     SAVED:     { label: "Sauvegardée",  color: "bg-blue-500/10 text-blue-500" },
@@ -33,6 +33,15 @@ const statusConfig: Record<IdeaStatus, { label: string; color: string }> = {
 
 const platforms: Platform[] = ["YOUTUBE","TIKTOK","INSTAGRAM","LINKEDIN","BLOG","PODCAST"];
 
+const tones: { value: ScriptTone; label: string; emoji: string }[] = [
+    { value: "EDUCATIF",        label: "Éducatif",        emoji: "🎓" },
+    { value: "HUMORISTIQUE",    label: "Humoristique",    emoji: "😄" },
+    { value: "INSPIRANT",       label: "Inspirant",       emoji: "✨" },
+    { value: "PROFESSIONNEL",   label: "Professionnel",   emoji: "💼" },
+    { value: "CONVERSATIONNEL", label: "Conversationnel", emoji: "💬" },
+    { value: "DRAMATIQUE",      label: "Dramatique",      emoji: "🎭" },
+];
+
 const container = {
     hidden: { opacity: 0 },
     show: { opacity: 1, transition: { staggerChildren: 0.06 } },
@@ -41,13 +50,16 @@ const item = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } };
 
 export default function IdeasPage() {
     const [open, setOpen] = useState(false);
+    const [scriptOpen, setScriptOpen] = useState(false);
+    const [selectedIdea, setSelectedIdea] = useState<Idea | null>(null);
     const [search, setSearch] = useState("");
     const [filterStatus, setFilterStatus] = useState<string>("ALL");
     const [filterProject, setFilterProject] = useState<string>("ALL");
     const queryClient = useQueryClient();
     const router = useRouter();
+    const searchParams = useSearchParams();
 
-    // Form state
+    // Génération idées
     const [projectId, setProjectId] = useState("");
     const [theme, setTheme] = useState("");
     const [audience, setAudience] = useState("");
@@ -56,13 +68,17 @@ export default function IdeasPage() {
     const [count, setCount] = useState("5");
     const [isGenerating, setIsGenerating] = useState(false);
 
+    // Génération script depuis idée
+    const [scriptProjectId, setScriptProjectId] = useState("");
+    const [scriptTone, setScriptTone] = useState<ScriptTone>("EDUCATIF");
+    const [isGeneratingScript, setIsGeneratingScript] = useState(false);
+
     const { data: projects = [] } = useQuery<Project[]>({
         queryKey: ["projects"],
         queryFn: async () => (await api.get("/api/projects")).data,
     });
 
-    // Charger les idées de TOUS les projets en parallèle
-    const ideasQueries = useQuery<Idea[]>({
+    const ideasQuery = useQuery<Idea[]>({
         queryKey: ["ideas-all", projects.map(p => p.id)],
         queryFn: async () => {
             if (projects.length === 0) return [];
@@ -74,15 +90,27 @@ export default function IdeasPage() {
         enabled: projects.length > 0,
     });
 
-    const allIdeas = ideasQueries.data ?? [];
-    const isLoading = ideasQueries.isLoading;
+    const allIdeas = ideasQuery.data ?? [];
+    const isLoading = ideasQuery.isLoading;
+
+    // Pré-ouvrir le dialog script si ?ideaId= est dans l'URL
+    useEffect(() => {
+        const ideaId = searchParams.get("ideaId");
+        if (ideaId && allIdeas.length > 0) {
+            const idea = allIdeas.find(i => String(i.id) === ideaId);
+            if (idea) {
+                setSelectedIdea(idea);
+                // Pré-remplir le projet de l'idée
+                if (idea.projectId) setScriptProjectId(String(idea.projectId));
+                setScriptOpen(true);
+            }
+        }
+    }, [searchParams, allIdeas]);
 
     const statusMutation = useMutation({
         mutationFn: ({ id, status }: { id: number; status: IdeaStatus }) =>
             api.patch(`/api/ideas/${id}/status?status=${status}`),
-        onSuccess: () => {
-            void queryClient.invalidateQueries({ queryKey: ["ideas-all"] });
-        },
+        onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["ideas-all"] }),
     });
 
     const handleGenerate = async () => {
@@ -108,10 +136,43 @@ export default function IdeasPage() {
         }
     };
 
+    const handleGenerateScript = async () => {
+        if (!selectedIdea || !scriptProjectId) {
+            toast.error("Choisissez un projet");
+            return;
+        }
+        setIsGeneratingScript(true);
+        try {
+            const res = await api.post("/api/scripts/generate", {
+                projectId: Number(scriptProjectId),
+                title: selectedIdea.title,
+                tone: scriptTone,
+                ideaId: selectedIdea.id,
+            });
+            // Marquer l'idée comme convertie
+            statusMutation.mutate({ id: selectedIdea.id, status: "CONVERTED" });
+            toast.success("Script généré !");
+            setScriptOpen(false);
+            router.push(`/scripts/${res.data.id}`);
+        } catch (error) {
+            const err = error as { response?: { data?: { message?: string } } };
+            toast.error(err.response?.data?.message || "Erreur lors de la génération");
+        } finally {
+            setIsGeneratingScript(false);
+        }
+    };
+
+    const openScriptDialog = (idea: Idea) => {
+        setSelectedIdea(idea);
+        setScriptProjectId(idea.projectId ? String(idea.projectId) : "");
+        setScriptOpen(true);
+    };
+
+    // FIX: filtre par projectId (pas idea.id)
     const filtered = allIdeas.filter((idea) => {
         const matchSearch = idea.title.toLowerCase().includes(search.toLowerCase());
         const matchStatus = filterStatus === "ALL" || idea.status === filterStatus;
-        const matchProject = filterProject === "ALL" || String(idea.id) === filterProject;
+        const matchProject = filterProject === "ALL" || String(idea.projectId) === filterProject;
         return matchSearch && matchStatus && matchProject;
     });
 
@@ -129,15 +190,13 @@ export default function IdeasPage() {
                 <Dialog open={open} onOpenChange={setOpen}>
                     <DialogTrigger asChild>
                         <Button className="gap-2">
-                            <Sparkles className="w-4 h-4" />
-                            Générer des idées
+                            <Sparkles className="w-4 h-4" /> Générer des idées
                         </Button>
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-md">
                         <DialogHeader>
                             <DialogTitle className="flex items-center gap-2">
-                                <Sparkles className="w-4 h-4 text-primary" />
-                                Générer des idées
+                                <Sparkles className="w-4 h-4 text-primary" /> Générer des idées
                             </DialogTitle>
                         </DialogHeader>
                         <div className="space-y-4 pt-2">
@@ -192,6 +251,54 @@ export default function IdeasPage() {
                 </Dialog>
             </motion.div>
 
+            {/* Dialog: Créer script depuis idée */}
+            <Dialog open={scriptOpen} onOpenChange={setScriptOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-primary" /> Créer un script
+                        </DialogTitle>
+                    </DialogHeader>
+                    {selectedIdea && (
+                        <div className="space-y-4 pt-2">
+                            <div className="p-3 rounded-lg bg-muted/50 border border-border">
+                                <p className="text-xs text-muted-foreground mb-1">Idée sélectionnée</p>
+                                <p className="text-sm font-medium">{selectedIdea.title}</p>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Projet</Label>
+                                <Select value={scriptProjectId} onValueChange={setScriptProjectId}>
+                                    <SelectTrigger><SelectValue placeholder="Choisir un projet..." /></SelectTrigger>
+                                    <SelectContent>
+                                        {projects.map((p) => (
+                                            <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Ton</Label>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {tones.map((t) => (
+                                        <button key={t.value} type="button" onClick={() => setScriptTone(t.value)}
+                                                className={`flex flex-col items-center gap-1 p-2.5 rounded-lg border text-xs transition-all
+                                                ${scriptTone === t.value ? "border-primary bg-primary/10 text-primary" : "border-border hover:border-primary/50 text-muted-foreground"}`}>
+                                            <span className="text-base">{t.emoji}</span>
+                                            <span className="font-medium">{t.label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            <Button onClick={handleGenerateScript} className="w-full gap-2" disabled={isGeneratingScript}>
+                                {isGeneratingScript
+                                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Génération (~30s)...</>
+                                    : <><Sparkles className="w-4 h-4" /> Générer le script</>}
+                            </Button>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
+
             {/* Filters */}
             <motion.div variants={item} className="flex flex-wrap gap-3">
                 <div className="relative flex-1 min-w-48">
@@ -199,9 +306,7 @@ export default function IdeasPage() {
                     <Input placeholder="Rechercher..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
                 </div>
                 <Select value={filterProject} onValueChange={setFilterProject}>
-                    <SelectTrigger className="w-48">
-                        <SelectValue placeholder="Tous les projets" />
-                    </SelectTrigger>
+                    <SelectTrigger className="w-48"><SelectValue placeholder="Tous les projets" /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="ALL">Tous les projets</SelectItem>
                         {projects.map((p) => (<SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>))}
@@ -209,8 +314,7 @@ export default function IdeasPage() {
                 </Select>
                 <Select value={filterStatus} onValueChange={setFilterStatus}>
                     <SelectTrigger className="w-40">
-                        <Filter className="w-4 h-4 mr-2" />
-                        <SelectValue />
+                        <Filter className="w-4 h-4 mr-2" /><SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="ALL">Tous</SelectItem>
@@ -241,13 +345,10 @@ export default function IdeasPage() {
             ) : (
                 <motion.div variants={container} className="space-y-3">
                     {filtered.map((idea) => {
-                        const project = projects.find(p => p.id === idea.id);
+                        const project = projects.find(p => p.id === idea.projectId); // FIX
                         return (
-                            <motion.div
-                                key={idea.id}
-                                variants={item}
-                                className="group bg-card border border-border rounded-xl p-4 hover:border-primary/40 transition-all duration-150"
-                            >
+                            <motion.div key={idea.id} variants={item}
+                                        className="group bg-card border border-border rounded-xl p-4 hover:border-primary/40 transition-all duration-150">
                                 <div className="flex items-start justify-between gap-4">
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -265,19 +366,26 @@ export default function IdeasPage() {
                                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                                         {idea.status === "SAVED" && (
                                             <>
-                                                <Button variant="ghost" size="icon" className="w-8 h-8 text-green-500 hover:text-green-600 hover:bg-green-500/10"
-                                                        title="Convertir en script" onClick={() => router.push(`/scripts?ideaId=${idea.id}`)}>
+                                                {/* FIX: ouvre le dialog script directement */}
+                                                <Button variant="ghost" size="icon"
+                                                        className="w-8 h-8 text-green-500 hover:text-green-600 hover:bg-green-500/10"
+                                                        title="Créer un script"
+                                                        onClick={() => openScriptDialog(idea)}>
                                                     <ArrowRight className="w-4 h-4" />
                                                 </Button>
-                                                <Button variant="ghost" size="icon" className="w-8 h-8 text-destructive hover:bg-destructive/10"
-                                                        title="Rejeter" onClick={() => statusMutation.mutate({ id: idea.id, status: "REJECTED" })}>
+                                                <Button variant="ghost" size="icon"
+                                                        className="w-8 h-8 text-destructive hover:bg-destructive/10"
+                                                        title="Rejeter"
+                                                        onClick={() => statusMutation.mutate({ id: idea.id, status: "REJECTED" })}>
                                                     <XCircle className="w-4 h-4" />
                                                 </Button>
                                             </>
                                         )}
                                         {idea.status === "REJECTED" && (
-                                            <Button variant="ghost" size="icon" className="w-8 h-8 text-blue-500 hover:bg-blue-500/10"
-                                                    title="Restaurer" onClick={() => statusMutation.mutate({ id: idea.id, status: "SAVED" })}>
+                                            <Button variant="ghost" size="icon"
+                                                    className="w-8 h-8 text-blue-500 hover:bg-blue-500/10"
+                                                    title="Restaurer"
+                                                    onClick={() => statusMutation.mutate({ id: idea.id, status: "SAVED" })}>
                                                 <CheckCircle2 className="w-4 h-4" />
                                             </Button>
                                         )}
