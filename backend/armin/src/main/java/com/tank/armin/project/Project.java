@@ -1,5 +1,8 @@
 package com.tank.armin.project;
 
+import com.tank.armin.idea.Idea;
+import com.tank.armin.script.Script;
+import com.tank.armin.title.Title;
 import com.tank.armin.user.User;
 import com.tank.armin.utils.Listeners;
 import jakarta.persistence.*;
@@ -9,17 +12,6 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * ╔══════════════════════════════════════════════════════════════╗
- * ║                    Project.java                             ║
- * ║     Conteneur principal — regroupe idées, scripts, titres   ║
- * ╚══════════════════════════════════════════════════════════════╝
- *
- * Limites par plan :
- *  FREE     → 3 projets max
- *  PRO      → illimité
- *  BUSINESS → illimité + collaboration
- */
 @Getter
 @Setter
 @Builder
@@ -42,21 +34,14 @@ public class Project extends Listeners {
     @Enumerated(EnumType.STRING)
     private Platform platform;
 
-    // Niche/thème du projet (ex: "Gaming", "Finance", "Cuisine")
     private String niche;
 
-    // Actif ou archivé
     private boolean archived;
 
-    // Propriétaire du projet
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id", nullable = false)
     private User owner;
 
-    /**
-     * Collaborateurs (Pro/Business uniquement)
-     * Un projet peut avoir plusieurs collaborateurs
-     */
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "project_collaborators",
@@ -65,4 +50,16 @@ public class Project extends Listeners {
     )
     @Builder.Default
     private List<User> collaborators = new ArrayList<>();
+
+    @OneToMany(mappedBy = "project", cascade = CascadeType.REMOVE, orphanRemoval = true)
+    @Builder.Default
+    private List<Idea> ideas = new ArrayList<>();
+
+    @OneToMany(mappedBy = "project", cascade = CascadeType.REMOVE, orphanRemoval = true)
+    @Builder.Default
+    private List<Script> scripts = new ArrayList<>();
+
+    @OneToMany(mappedBy = "project", cascade = CascadeType.REMOVE, orphanRemoval = true)
+    @Builder.Default
+    private List<Title> titles = new ArrayList<>();
 }

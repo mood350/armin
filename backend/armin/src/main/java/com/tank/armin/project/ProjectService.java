@@ -22,14 +22,7 @@ public class ProjectService {
     private final UserRepository userRepository;
     private final SubscriptionRepository subscriptionRepository;
 
-    // ═══════════════════════════════════════════════════════════════
-    //  CRUD
-    // ═══════════════════════════════════════════════════════════════
-
-    /**
-     * Crée un nouveau projet.
-     * Vérifie le quota FREE (3 projets max).
-     */
+    @Transactional
     public ProjectResponse create(ProjectRequest request) {
         User user = getCurrentUser();
         checkProjectQuota(user);
@@ -46,10 +39,6 @@ public class ProjectService {
         return ProjectResponse.from(projectRepository.save(project));
     }
 
-    /**
-     * Retourne tous les projets accessibles par l'user
-     * (owned + collaborateur).
-     */
     @Transactional(readOnly = true)
     public List<ProjectResponse> getMyProjects() {
         User user = getCurrentUser();
@@ -59,19 +48,13 @@ public class ProjectService {
                 .toList();
     }
 
-    /**
-     * Retourne un projet par ID.
-     * Vérifie que l'user a accès au projet.
-     */
+    @Transactional(readOnly = true)
     public ProjectResponse getById(Long id) {
         Project project = findProjectWithAccess(id);
         return ProjectResponse.from(project);
     }
 
-    /**
-     * Met à jour un projet.
-     * Seul le propriétaire peut modifier.
-     */
+    @Transactional
     public ProjectResponse update(Long id, ProjectRequest request) {
         Project project = findProjectOwnedByCurrentUser(id);
 
@@ -83,33 +66,20 @@ public class ProjectService {
         return ProjectResponse.from(projectRepository.save(project));
     }
 
-    /**
-     * Archive un projet (soft delete).
-     * Seul le propriétaire peut archiver.
-     */
+    @Transactional
     public void archive(Long id) {
         Project project = findProjectOwnedByCurrentUser(id);
         project.setArchived(true);
         projectRepository.save(project);
     }
 
-    /**
-     * Supprime définitivement un projet.
-     * Seul le propriétaire peut supprimer.
-     */
+    @Transactional
     public void delete(Long id) {
         Project project = findProjectOwnedByCurrentUser(id);
         projectRepository.delete(project);
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    //  COLLABORATION (Pro/Business uniquement)
-    // ═══════════════════════════════════════════════════════════════
-
-    /**
-     * Ajoute un collaborateur à un projet.
-     * Réservé aux plans Pro et Business.
-     */
+    @Transactional
     public void addCollaborator(Long projectId, String collaboratorEmail) {
         User owner = getCurrentUser();
         checkCollaborationAccess(owner);
@@ -128,9 +98,7 @@ public class ProjectService {
         projectRepository.save(project);
     }
 
-    /**
-     * Retire un collaborateur d'un projet.
-     */
+    @Transactional
     public void removeCollaborator(Long projectId, String collaboratorEmail) {
         Project project = findProjectOwnedByCurrentUser(projectId);
 
@@ -142,9 +110,16 @@ public class ProjectService {
         projectRepository.save(project);
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    //  UTILITAIRES PRIVÉS
-    // ═══════════════════════════════════════════════════════════════
+    @Transactional(readOnly = true)
+    public List<CollaboratorResponse> getCollaborators(Long projectId) {
+        Project project = findProjectWithAccess(projectId);
+        return project.getCollaborators()
+                .stream()
+                .map(CollaboratorResponse::from)
+                .toList();
+    }
+
+    // ─── Utilitaires privés ───────────────────────────────────────────────────
 
     private User getCurrentUser() {
         String email = SecurityContextHolder.getContext()
@@ -152,10 +127,6 @@ public class ProjectService {
         return userRepository.findByEmail(email).orElseThrow();
     }
 
-    /**
-     * Vérifie le quota de projets pour le plan FREE.
-     * FREE → max 3 projets actifs.
-     */
     private void checkProjectQuota(User user) {
         Subscription sub = subscriptionRepository.findByUser(user)
                 .orElseThrow();
@@ -170,10 +141,6 @@ public class ProjectService {
         }
     }
 
-    /**
-     * Vérifie que l'user a accès au projet
-     * (propriétaire OU collaborateur).
-     */
     private Project findProjectWithAccess(Long id) {
         User user = getCurrentUser();
         Project project = projectRepository.findById(id)
@@ -189,9 +156,6 @@ public class ProjectService {
         return project;
     }
 
-    /**
-     * Vérifie que l'user EST le propriétaire du projet.
-     */
     private Project findProjectOwnedByCurrentUser(Long id) {
         User user = getCurrentUser();
         Project project = projectRepository.findById(id)
@@ -205,13 +169,12 @@ public class ProjectService {
         return project;
     }
 
-    /**
-     * Vérifie que l'user a un plan Pro ou Business
-     * pour utiliser la collaboration.
-     */
     private void checkCollaborationAccess(User user) {
         Subscription sub = subscriptionRepository.findByUser(user)
-                .orElseThrow();
+                .orElse(null);
+
+        // Si pas de subscription (ex: admin), on autorise
+        if (sub == null) return;
 
         if (sub.getPlan() == SubscriptionPlan.FREE) {
             throw new AccessDeniedException(
