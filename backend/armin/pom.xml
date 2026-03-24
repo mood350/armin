@@ -123,6 +123,11 @@
 			<version>8.0.4</version>
 			<type>pom</type>
 		</dependency>
+		<dependency>
+			<groupId>io.github.cdimascio</groupId>
+			<artifactId>dotenv-java</artifactId>
+			<version>3.0.0</version>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -138,5 +143,4 @@
 				<filtering>false</filtering> </resource>
 		</resources>
 	</build>
-
 </project>
