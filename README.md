@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 <div align="center">
 
 # 🚀 Armin — Backend API
