@@ -61,7 +61,8 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(List.of(
                 "http://localhost:4200",  // Angular
                 "http://localhost:3000",
-                "http://localhost:8000"
+                "http://localhost:8000",
+                "https://*.vercel.app"
         ));
 
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));

@@ -43,6 +43,7 @@ export interface Idea {
     id: number;
     title: string;
     description: string;
+    projectId?: number;
     tags: string;
     notes: string;
     platform: Platform;
@@ -68,6 +69,7 @@ export interface ScriptVersion {
 
 export interface Script {
     id: number;
+    projectId?: number;
     title: string;
     content: string;
     tone: ScriptTone;
@@ -80,6 +82,7 @@ export interface Script {
 
 export interface Title {
     id: number;
+    projectId?: number;
     content: string;
     engagementScore: number;
     characterCount: number;

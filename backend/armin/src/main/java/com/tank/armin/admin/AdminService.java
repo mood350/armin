@@ -6,6 +6,7 @@ import com.tank.armin.script.ScriptRepository;
 import com.tank.armin.subscription.Subscription;
 import com.tank.armin.subscription.SubscriptionPlan;
 import com.tank.armin.subscription.SubscriptionRepository;
+import com.tank.armin.subscription.SubscriptionStatus;
 import com.tank.armin.title.TitleRepository;
 import com.tank.armin.user.User;
 import com.tank.armin.user.UserRepository;
@@ -31,19 +32,23 @@ public class AdminService {
 
     public Page<AdminUserResponse> getAllUsers(Pageable pageable) {
         return userRepository.findAll(pageable).map(user -> {
-            Subscription sub = subscriptionRepository
-                    .findByUser(user).orElse(null);
-            SubscriptionPlan plan = sub != null
-                    ? sub.getPlan() : SubscriptionPlan.FREE;
+            Subscription sub = subscriptionRepository.findByUser(user).orElse(null);
+            SubscriptionPlan plan = sub != null ? sub.getPlan() : SubscriptionPlan.FREE;
             return AdminUserResponse.from(user, plan);
         });
     }
 
     public void toggleUserAccount(Long userId, boolean locked) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new EntityNotFoundException(
-                        "Utilisateur introuvable"));
+                .orElseThrow(() -> new EntityNotFoundException("Utilisateur introuvable"));
         user.setAccountLocked(locked);
+        userRepository.save(user);
+    }
+
+    public void toggleUserEnabled(Long userId, boolean enabled) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("Utilisateur introuvable"));
+        user.setEnabled(enabled);
         userRepository.save(user);
     }
 
@@ -52,25 +57,18 @@ public class AdminService {
         long totalUsers = allUsers.size();
 
         long freeUsers = subscriptionRepository.findAll().stream()
-                .filter(s -> s.getPlan() == SubscriptionPlan.FREE)
-                .count();
-
+                .filter(s -> s.getPlan() == SubscriptionPlan.FREE).count();
         long proUsers = subscriptionRepository.findAll().stream()
-                .filter(s -> s.getPlan() == SubscriptionPlan.PRO)
-                .count();
-
+                .filter(s -> s.getPlan() == SubscriptionPlan.PRO).count();
         long businessUsers = subscriptionRepository.findAll().stream()
-                .filter(s -> s.getPlan() == SubscriptionPlan.BUSINESS)
-                .count();
+                .filter(s -> s.getPlan() == SubscriptionPlan.BUSINESS).count();
 
         long paidUsers = proUsers + businessUsers;
-        double conversionRate = totalUsers > 0
-                ? (paidUsers * 100.0) / totalUsers : 0;
+        double conversionRate = totalUsers > 0 ? (paidUsers * 100.0) / totalUsers : 0;
 
         return AdminStatsResponse.builder()
                 .totalUsers(totalUsers)
-                .activeUsers(allUsers.stream()
-                        .filter(User::isEnabled).count())
+                .activeUsers(allUsers.stream().filter(User::isEnabled).count())
                 .freeUsers(freeUsers)
                 .proUsers(proUsers)
                 .businessUsers(businessUsers)
@@ -82,23 +80,16 @@ public class AdminService {
                 .build();
     }
 
-    /**
-     * Change le plan d'un utilisateur.
-     * Si l'utilisateur n'a pas encore de subscription (ex: admin),
-     * on en crée une automatiquement.
-     */
     public void changePlan(Long userId, SubscriptionPlan plan) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new EntityNotFoundException(
-                        "Utilisateur introuvable"));
+                .orElseThrow(() -> new EntityNotFoundException("Utilisateur introuvable"));
 
         Subscription sub = subscriptionRepository.findByUser(user)
                 .orElseGet(() -> {
-                    // Crée une subscription FREE par défaut puis change le plan
                     Subscription newSub = Subscription.builder()
                             .user(user)
                             .plan(SubscriptionPlan.FREE)
-                            .status(com.tank.armin.subscription.SubscriptionStatus.ACTIVE)
+                            .status(SubscriptionStatus.ACTIVE)
                             .startDate(LocalDateTime.now())
                             .ideasUsedToday(0)
                             .scriptsUsedToday(0)
