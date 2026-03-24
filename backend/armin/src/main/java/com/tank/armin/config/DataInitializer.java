@@ -24,6 +24,12 @@ public class DataInitializer implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
+        // Crée le rôle USER s'il n'existe pas
+        roleRepository.findByRoleName("USER")
+                .orElseGet(() -> roleRepository.save(
+                        Role.builder().roleName("USER").build()
+                ));
+
         createAdminIfNotExists();
     }
 
