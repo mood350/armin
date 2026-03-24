@@ -90,12 +90,12 @@ export default function SubscriptionPage() {
 
     const { data: subscription, isLoading } = useQuery<Subscription>({
         queryKey: ["subscription"],
-        queryFn: async () => (await api.get("/api/subscriptions/current")).data,
+        queryFn: async () => (await api.get("/subscriptions/current")).data,
     });
 
     const upgradeMutation = useMutation({
         mutationFn: async ({ plan, cycle }: { plan: SubscriptionPlan; cycle: BillingCycle }) => {
-            const res = await api.post(`/api/subscriptions/upgrade?plan=${plan}&cycle=${cycle}`);
+            const res = await api.post(`/subscriptions/upgrade?plan=${plan}&cycle=${cycle}`);
             return res.data;
         },
         onSuccess: (data: { payment_url: string }) => {

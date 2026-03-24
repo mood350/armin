@@ -75,7 +75,7 @@ export default function IdeasContent() {
 
     const { data: projects = [] } = useQuery<Project[]>({
         queryKey: ["projects"],
-        queryFn: async () => (await api.get("/api/projects")).data,
+        queryFn: async () => (await api.get("/projects")).data,
     });
 
     const ideasQuery = useQuery<Idea[]>({
@@ -83,7 +83,7 @@ export default function IdeasContent() {
         queryFn: async () => {
             if (projects.length === 0) return [];
             const results = await Promise.all(
-                projects.map(p => api.get(`/api/ideas/project/${p.id}`).then(r => r.data as Idea[]))
+                projects.map(p => api.get(`/ideas/project/${p.id}`).then(r => r.data as Idea[]))
             );
             return results.flat();
         },
@@ -108,7 +108,7 @@ export default function IdeasContent() {
 
     const statusMutation = useMutation({
         mutationFn: ({ id, status }: { id: number; status: IdeaStatus }) =>
-            api.patch(`/api/ideas/${id}/status?status=${status}`),
+            api.patch(`/ideas/${id}/status?status=${status}`),
         onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["ideas-all"] }),
     });
 
@@ -119,7 +119,7 @@ export default function IdeasContent() {
         }
         setIsGenerating(true);
         try {
-            await api.post("/api/ideas/generate", {
+            await api.post("/ideas/generate", {
                 projectId: Number(projectId),
                 theme, audience, platform, format,
                 count: Number(count),
@@ -142,7 +142,7 @@ export default function IdeasContent() {
         }
         setIsGeneratingScript(true);
         try {
-            const res = await api.post("/api/scripts/generate", {
+            const res = await api.post("/scripts/generate", {
                 projectId: Number(scriptProjectId),
                 title: selectedIdea.title,
                 tone: scriptTone,

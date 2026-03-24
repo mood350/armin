@@ -74,13 +74,13 @@ export default function AdminPage() {
 
     const { data: stats, isLoading: statsLoading } = useQuery<AdminStats>({
         queryKey: ["admin-stats"],
-        queryFn: async () => (await api.get("/api/admin/stats")).data,
+        queryFn: async () => (await api.get("/admin/stats")).data,
     });
 
     const { data: users = [], isLoading: usersLoading } = useQuery<AdminUser[]>({
         queryKey: ["admin-users"],
         queryFn: async () => {
-            const res = await api.get("/api/admin/users?page=0&size=200");
+            const res = await api.get("/admin/users?page=0&size=200");
             return res.data.content;
         },
     });
@@ -92,26 +92,26 @@ export default function AdminPage() {
 
     // Lock / Unlock (accountLocked)
     const lockMutation = useMutation({
-        mutationFn: (id: number) => api.patch(`/api/admin/users/${id}/lock`),
+        mutationFn: (id: number) => api.patch(`/admin/users/${id}/lock`),
         onSuccess: () => { toast.success("Compte suspendu"); invalidate(); },
         onError: () => toast.error("Erreur lors de la suspension"),
     });
 
     const unlockMutation = useMutation({
-        mutationFn: (id: number) => api.patch(`/api/admin/users/${id}/unlock`),
+        mutationFn: (id: number) => api.patch(`/admin/users/${id}/unlock`),
         onSuccess: () => { toast.success("Compte réactivé"); invalidate(); },
         onError: () => toast.error("Erreur lors de la réactivation"),
     });
 
     // Enable / Disable (enabled — confirmation email)
     const enableMutation = useMutation({
-        mutationFn: (id: number) => api.patch(`/api/admin/users/${id}/enable`),
+        mutationFn: (id: number) => api.patch(`/admin/users/${id}/enable`),
         onSuccess: () => { toast.success("Compte activé"); invalidate(); },
         onError: () => toast.error("Erreur lors de l'activation"),
     });
 
     const disableMutation = useMutation({
-        mutationFn: (id: number) => api.patch(`/api/admin/users/${id}/disable`),
+        mutationFn: (id: number) => api.patch(`/admin/users/${id}/disable`),
         onSuccess: () => { toast.success("Compte désactivé"); invalidate(); },
         onError: () => toast.error("Erreur lors de la désactivation"),
     });
@@ -119,7 +119,7 @@ export default function AdminPage() {
     // Change plan
     const planMutation = useMutation({
         mutationFn: ({ id, plan }: { id: number; plan: string }) =>
-            api.patch(`/api/admin/users/${id}/plan?plan=${plan}`),
+            api.patch(`/admin/users/${id}/plan?plan=${plan}`),
         onSuccess: () => { toast.success("Plan modifié"); invalidate(); },
         onError: () => toast.error("Erreur lors du changement de plan"),
     });

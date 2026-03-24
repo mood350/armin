@@ -58,7 +58,7 @@ export default function TitlesPage() {
 
     const { data: projects = [] } = useQuery<Project[]>({
         queryKey: ["projects"],
-        queryFn: async () => (await api.get("/api/projects")).data,
+        queryFn: async () => (await api.get("/projects")).data,
     });
 
     const titlesQuery = useQuery<Title[]>({
@@ -66,7 +66,7 @@ export default function TitlesPage() {
         queryFn: async () => {
             if (projects.length === 0) return [];
             const results = await Promise.all(
-                projects.map(p => api.get(`/api/titles/project/${p.id}`).then(r => r.data as Title[]))
+                projects.map(p => api.get(`/titles/project/${p.id}`).then(r => r.data as Title[]))
             );
             return results.flat();
         },
@@ -77,7 +77,7 @@ export default function TitlesPage() {
     const isLoading = titlesQuery.isLoading;
 
     const selectMutation = useMutation({
-        mutationFn: (id: number) => api.patch(`/api/titles/${id}/select`),
+        mutationFn: (id: number) => api.patch(`/titles/${id}/select`),
         onSuccess: () => {
             void queryClient.invalidateQueries({ queryKey: ["titles-all"] });
             toast.success("Titre sélectionné !");
@@ -85,7 +85,7 @@ export default function TitlesPage() {
     });
 
     const deleteMutation = useMutation({
-        mutationFn: (id: number) => api.delete(`/api/titles/${id}`),
+        mutationFn: (id: number) => api.delete(`/titles/${id}`),
         onSuccess: () => {
             void queryClient.invalidateQueries({ queryKey: ["titles-all"] });
             toast.success("Titre supprimé");
@@ -100,7 +100,7 @@ export default function TitlesPage() {
         setIsGenerating(true);
         try {
             // FIX: payload correct pour le backend
-            await api.post("/api/titles/generate", {
+            await api.post("/titles/generate", {
                 projectId: Number(projectId),
                 subject,
                 keywords: keywords || null,

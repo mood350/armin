@@ -54,13 +54,13 @@ export default function ProjectsPage() {
     const { data: projects = [], isLoading } = useQuery<Project[]>({
         queryKey: ["projects"],
         queryFn: async () => {
-            const res = await api.get("/api/projects");
+            const res = await api.get("/projects");
             return res.data;
         },
     });
 
     const archiveMutation = useMutation({
-        mutationFn: (id: number) => api.patch(`/api/projects/${id}/archive`),
+        mutationFn: (id: number) => api.patch(`/projects/${id}/archive`),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["projects"] });
             toast.success("Projet archivé");
@@ -69,7 +69,7 @@ export default function ProjectsPage() {
     });
 
     const deleteMutation = useMutation({
-        mutationFn: (id: number) => api.delete(`/api/projects/${id}`),
+        mutationFn: (id: number) => api.delete(`/projects/${id}`),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["projects"] });
             toast.success("Projet supprimé");

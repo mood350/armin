@@ -50,7 +50,7 @@ export default function SettingsPage() {
     const handleSaveProfile = async () => {
         setSaving(true);
         try {
-            await api.patch("/api/users/me", { firstName, lastName });
+            await api.patch("/users/me", { firstName, lastName });
             showSaved();
         } catch (e) {
             console.error(e);
@@ -63,7 +63,7 @@ export default function SettingsPage() {
         if (newPwd !== confirmPwd) return;
         setSaving(true);
         try {
-            await api.post("/api/auth/change-password", { currentPassword: currentPwd, newPassword: newPwd });
+            await api.post("/auth/change-password", { currentPassword: currentPwd, newPassword: newPwd });
             setCurrentPwd(""); setNewPwd(""); setConfirmPwd("");
             showSaved();
         } catch (e) {
@@ -293,7 +293,7 @@ export default function SettingsPage() {
                                     Cette action est irréversible. Toutes vos données, projets, idées et scripts seront définitivement supprimés.
                                 </p>
                                 <button
-                                    onClick={() => confirm("Êtes-vous sûr ? Cette action est irréversible.") && api.delete("/api/users/me").then(() => { logout(); router.push("/login"); })}
+                                    onClick={() => confirm("Êtes-vous sûr ? Cette action est irréversible.") && api.delete("/users/me").then(() => { logout(); router.push("/login"); })}
                                     className="bg-red-500 hover:bg-red-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-colors"
                                 >
                                     Supprimer mon compte

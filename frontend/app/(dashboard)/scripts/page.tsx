@@ -53,7 +53,7 @@ export default function ScriptsPage() {
 
     const { data: projects = [] } = useQuery<Project[]>({
         queryKey: ["projects"],
-        queryFn: async () => (await api.get("/api/projects")).data,
+        queryFn: async () => (await api.get("/projects")).data,
     });
 
     const scriptsQuery = useQuery<Script[]>({
@@ -61,7 +61,7 @@ export default function ScriptsPage() {
         queryFn: async () => {
             if (projects.length === 0) return [];
             const results = await Promise.all(
-                projects.map(p => api.get(`/api/scripts/project/${p.id}`).then(r => r.data as Script[]))
+                projects.map(p => api.get(`/scripts/project/${p.id}`).then(r => r.data as Script[]))
             );
             return results.flat();
         },
@@ -72,7 +72,7 @@ export default function ScriptsPage() {
     const isLoading = scriptsQuery.isLoading;
 
     const deleteMutation = useMutation({
-        mutationFn: (id: number) => api.delete(`/api/scripts/${id}`),
+        mutationFn: (id: number) => api.delete(`/scripts/${id}`),
         onSuccess: () => {
             void queryClient.invalidateQueries({ queryKey: ["scripts-all"] });
             toast.success("Script supprimé");
@@ -86,7 +86,7 @@ export default function ScriptsPage() {
         }
         setIsGenerating(true);
         try {
-            const res = await api.post("/api/scripts/generate", {
+            const res = await api.post("/scripts/generate", {
                 projectId: Number(projectId),
                 title,
                 tone: selectedTone,

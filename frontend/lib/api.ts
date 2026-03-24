@@ -46,7 +46,7 @@ api.interceptors.response.use(
                 if (!refreshToken) throw new Error("No refresh token");
 
                 const response = await axios.post(
-                    `${process.env.NEXT_PUBLIC_API_URL}/api/auth/refresh-token`,
+                    `${process.env.NEXT_PUBLIC_API_URL}/auth/refresh-token`,
                     {},
                     { headers: { Authorization: `Bearer ${refreshToken}` } }
                 );

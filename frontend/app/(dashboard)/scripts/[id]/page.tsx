@@ -43,7 +43,7 @@ export default function ScriptEditorPage() {
 
     const { data: script, isLoading } = useQuery<Script>({
         queryKey: ["script", id],
-        queryFn: async () => (await api.get(`/api/scripts/${id}`)).data,
+        queryFn: async () => (await api.get(`/scripts/${id}`)).data,
     });
 
     useEffect(() => {
@@ -55,7 +55,7 @@ export default function ScriptEditorPage() {
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            await api.patch(`/api/scripts/${id}/content`, content, {
+            await api.patch(`/scripts/${id}/content`, content, {
                 headers: { "Content-Type": "text/plain" },
             });
             toast.success("Script sauvegardé");
@@ -71,7 +71,7 @@ export default function ScriptEditorPage() {
     const handleImprove = async () => {
         setIsImproving(true);
         try {
-            const res = await api.post("/api/scripts/improve", {
+            const res = await api.post("/scripts/improve", {
                 scriptId: Number(id),
                 action: selectedAction,
             });
@@ -88,7 +88,7 @@ export default function ScriptEditorPage() {
 
     const handleExport = async () => {
         try {
-            const res = await api.get(`/api/export/scripts/${id}/txt`, {
+            const res = await api.get(`/export/scripts/${id}/txt`, {
                 responseType: "blob",
             });
             const url = URL.createObjectURL(res.data);

@@ -44,7 +44,7 @@ export function ProjectForm({ onSuccess }: { onSuccess: () => void }) {
     const onSubmit = async (data: FormData) => {
         setIsLoading(true);
         try {
-            await api.post("/api/projects", data);
+            await api.post("/projects", data);
             toast.success("Projet créé !");
             onSuccess();
         } catch (error) {

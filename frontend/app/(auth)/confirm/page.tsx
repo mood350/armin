@@ -23,7 +23,7 @@ export default function ConfirmPage() {
 
         setIsLoading(true);
         try {
-            await api.get(`/api/auth/confirm?token=${token}`);
+            await api.get(`/auth/confirm?token=${token}`);
             toast.success("Compte activé ! Vous pouvez vous connecter."); // ✅
             router.push("/login");
         } catch (error) {

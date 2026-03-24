@@ -37,7 +37,7 @@ const activityTypeConfig = {
 export default function DashboardPage() {
     const { data, isLoading } = useQuery<DashboardData>({
         queryKey: ["dashboard"],
-        queryFn: async () => (await api.get("/api/dashboard")).data,
+        queryFn: async () => (await api.get("/dashboard")).data,
         refetchInterval: 30_000,
     });
 

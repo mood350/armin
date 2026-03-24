@@ -43,7 +43,7 @@ export default function RegisterPage() {
     const onSubmit = async (data: RegisterForm) => {
         setIsLoading(true);
         try {
-            await api.post("/api/auth/register", data);
+            await api.post("/auth/register", data);
             toast.success("Compte créé ! Vérifiez votre email."); // ✅
             router.push("/confirm");
         } catch (error) {

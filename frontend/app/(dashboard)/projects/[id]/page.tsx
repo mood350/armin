@@ -69,29 +69,29 @@ export default function ProjectDetailPage() {
 
     const { data: project, isLoading: projectLoading } = useQuery<Project>({
         queryKey: ["project", id],
-        queryFn: async () => (await api.get(`/api/projects/${id}`)).data,
+        queryFn: async () => (await api.get(`/projects/${id}`)).data,
     });
 
     const { data: ideas = [] } = useQuery<Idea[]>({
         queryKey: ["ideas", id],
-        queryFn: async () => (await api.get(`/api/ideas/project/${id}`)).data,
+        queryFn: async () => (await api.get(`/ideas/project/${id}`)).data,
     });
 
     const { data: scripts = [] } = useQuery<Script[]>({
         queryKey: ["scripts", id],
-        queryFn: async () => (await api.get(`/api/scripts/project/${id}`)).data,
+        queryFn: async () => (await api.get(`/scripts/project/${id}`)).data,
     });
 
     const { data: titles = [] } = useQuery<Title[]>({
         queryKey: ["titles", id],
-        queryFn: async () => (await api.get(`/api/titles/project/${id}`)).data,
+        queryFn: async () => (await api.get(`/titles/project/${id}`)).data,
     });
 
     const { data: collaborators = [] } = useQuery<Collaborator[]>({
         queryKey: ["collaborators", id],
         queryFn: async () => {
             try {
-                return (await api.get(`/api/projects/${id}/collaborators`)).data;
+                return (await api.get(`/projects/${id}/collaborators`)).data;
             } catch {
                 return [];
             }
@@ -100,12 +100,12 @@ export default function ProjectDetailPage() {
 
     const statusMutation = useMutation({
         mutationFn: ({ ideaId, status }: { ideaId: number; status: IdeaStatus }) =>
-            api.patch(`/api/ideas/${ideaId}/status?status=${status}`),
+            api.patch(`/ideas/${ideaId}/status?status=${status}`),
         onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["ideas", id] }),
     });
 
     const deleteScriptMutation = useMutation({
-        mutationFn: (scriptId: number) => api.delete(`/api/scripts/${scriptId}`),
+        mutationFn: (scriptId: number) => api.delete(`/scripts/${scriptId}`),
         onSuccess: () => {
             void queryClient.invalidateQueries({ queryKey: ["scripts", id] });
             toast.success("Script supprimé");
@@ -113,7 +113,7 @@ export default function ProjectDetailPage() {
     });
 
     const selectTitleMutation = useMutation({
-        mutationFn: (titleId: number) => api.patch(`/api/titles/${titleId}/select`),
+        mutationFn: (titleId: number) => api.patch(`/titles/${titleId}/select`),
         onSuccess: () => {
             void queryClient.invalidateQueries({ queryKey: ["titles", id] });
             toast.success("Titre sélectionné !");
@@ -123,7 +123,7 @@ export default function ProjectDetailPage() {
     // FIX: email dans le body JSON (pas query param), mutation prend string email
     const removeCollabMutation = useMutation({
         mutationFn: (email: string) =>
-            api.delete(`/api/projects/${id}/collaborators`, {
+            api.delete(`/projects/${id}/collaborators`, {
                 data: { email },
             }),
         onSuccess: () => {
@@ -137,7 +137,7 @@ export default function ProjectDetailPage() {
         if (!selectedIdea) return;
         setIsGeneratingScript(true);
         try {
-            const res = await api.post("/api/scripts/generate", {
+            const res = await api.post("/scripts/generate", {
                 projectId: Number(id),
                 title: selectedIdea.title,
                 tone: scriptTone,
@@ -160,7 +160,7 @@ export default function ProjectDetailPage() {
         if (!collabEmail.trim()) return;
         setIsAddingCollab(true);
         try {
-            await api.post(`/api/projects/${id}/collaborators`, {
+            await api.post(`/projects/${id}/collaborators`, {
                 email: collabEmail.trim(),
             });
             toast.success("Collaborateur ajouté !");
