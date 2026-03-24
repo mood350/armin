@@ -63,7 +63,8 @@ public class SecurityConfig {
                 "http://localhost:4200",  // Angular
                 "http://localhost:3000",
                 "http://localhost:8000",
-                "https://armin-tg.vercel.app"
+                "https://armin-tg.vercel.app",
+                "https://armin-iu31.onrender.com"
         ));
 
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
