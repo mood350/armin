@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
     ArrowLeft, Save, Wand2, Loader2, Clock,
-    Hash, History, Download, Sparkles
+    Hash, History, Download, Sparkles, FileText, FileDown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,15 +19,19 @@ import {
     Sheet, SheetContent, SheetHeader,
     SheetTitle, SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+    DropdownMenu, DropdownMenuContent,
+    DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { Script } from "@/types";
 
 const improveActions = [
-    { value: "REFORMULER",   label: "Reformuler",    emoji: "🔄" },
-    { value: "ALLONGER",     label: "Allonger",      emoji: "📏" },
-    { value: "RACCOURCIR",   label: "Raccourcir",    emoji: "✂️" },
-    { value: "CHANGE_TONE",  label: "Changer le ton",emoji: "🎭" },
+    { value: "REFORMULER", label: "Reformuler", emoji: "🔄" },
+    { value: "ALLONGER", label: "Allonger", emoji: "📏" },
+    { value: "RACCOURCIR", label: "Raccourcir", emoji: "✂️" },
+    { value: "CHANGE_TONE", label: "Changer le ton", emoji: "🎭" },
 ];
 
 export default function ScriptEditorPage() {
@@ -86,19 +90,34 @@ export default function ScriptEditorPage() {
         }
     };
 
-    const handleExport = async () => {
+    const triggerDownload = (blob: Blob, filename: string) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const handleExportTxt = async () => {
         try {
             const res = await api.get(`/export/scripts/${id}/txt`, {
                 responseType: "blob",
             });
-            const url = URL.createObjectURL(res.data);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `script-${id}.txt`;
-            a.click();
-            URL.revokeObjectURL(url);
+            triggerDownload(res.data, `script-${id}.txt`);
         } catch {
-            toast.error("Erreur lors de l'export");
+            toast.error("Erreur lors de l'export TXT");
+        }
+    };
+
+    const handleExportPdf = async () => {
+        try {
+            const res = await api.get(`/export/scripts/${id}/pdf`, {
+                responseType: "blob",
+            });
+            triggerDownload(res.data, `script-${id}.pdf`);
+        } catch {
+            toast.error("Erreur lors de l'export PDF");
         }
     };
 
@@ -120,12 +139,12 @@ export default function ScriptEditorPage() {
                 <div className="flex-1 min-w-0">
                     <h1 className="font-bold text-lg truncate">{script.title}</h1>
                     <div className="flex items-center gap-3 mt-0.5">
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
-              <Clock className="w-3 h-3" /> {script.estimatedDuration}
-            </span>
                         <span className="text-xs text-muted-foreground flex items-center gap-1">
-              <Hash className="w-3 h-3" /> {script.wordCount} mots
-            </span>
+                            <Clock className="w-3 h-3" /> {script.estimatedDuration}
+                        </span>
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Hash className="w-3 h-3" /> {script.wordCount} mots
+                        </span>
                         {isDirty && (
                             <Badge variant="outline" className="text-xs text-amber-500 border-amber-500/50">
                                 Non sauvegardé
@@ -179,7 +198,7 @@ export default function ScriptEditorPage() {
                                 <div
                                     key={v.versionNumber}
                                     className="p-3 rounded-lg border border-border hover:border-primary/50
-                             cursor-pointer transition-colors"
+                                     cursor-pointer transition-colors"
                                     onClick={() => {
                                         setContent(v.content);
                                         setIsDirty(true);
@@ -187,12 +206,12 @@ export default function ScriptEditorPage() {
                                     }}
                                 >
                                     <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium">
-                      Version {v.versionNumber}
-                    </span>
+                                        <span className="text-sm font-medium">
+                                            Version {v.versionNumber}
+                                        </span>
                                         <span className="text-xs text-muted-foreground">
-                      {new Date(v.createdAt).toLocaleDateString("fr-FR")}
-                    </span>
+                                            {new Date(v.createdAt).toLocaleDateString("fr-FR")}
+                                        </span>
                                     </div>
                                     <p className="text-xs text-muted-foreground">{v.changeDescription}</p>
                                 </div>
@@ -202,9 +221,23 @@ export default function ScriptEditorPage() {
                 </Sheet>
 
                 {/* Export */}
-                <Button variant="outline" size="icon" className="h-9 w-9" onClick={handleExport}>
-                    <Download className="w-4 h-4" />
-                </Button>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="icon" className="h-9 w-9">
+                            <Download className="w-4 h-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={handleExportTxt} className="gap-2 cursor-pointer">
+                            <FileText className="w-4 h-4" />
+                            Exporter en TXT
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={handleExportPdf} className="gap-2 cursor-pointer">
+                            <FileDown className="w-4 h-4" />
+                            Exporter en PDF
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
 
                 {/* Save */}
                 <Button
@@ -222,19 +255,19 @@ export default function ScriptEditorPage() {
 
             {/* Editor */}
             <div className="flex-1 min-h-0">
-        <textarea
-            value={content}
-            onChange={(e) => {
-                setContent(e.target.value);
-                setIsDirty(true);
-            }}
-            className="w-full h-full min-h-[60vh] p-5 rounded-xl border border-border
-                     bg-card text-sm leading-relaxed resize-none
-                     focus:outline-none focus:ring-2 focus:ring-primary/30
-                     font-mono transition-all"
-            placeholder="Le contenu du script apparaîtra ici..."
-            spellCheck={false}
-        />
+                <textarea
+                    value={content}
+                    onChange={(e) => {
+                        setContent(e.target.value);
+                        setIsDirty(true);
+                    }}
+                    className="w-full h-full min-h-[60vh] p-5 rounded-xl border border-border
+                             bg-card text-sm leading-relaxed resize-none
+                             focus:outline-none focus:ring-2 focus:ring-primary/30
+                             font-mono transition-all"
+                    placeholder="Le contenu du script apparaîtra ici..."
+                    spellCheck={false}
+                />
             </div>
         </motion.div>
     );
